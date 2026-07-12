@@ -1,0 +1,111 @@
+import cv2
+import numpy as np
+from utils import distance, midpoint
+
+class Detector:
+
+    def detect_objects(self, image):
+
+        gray = cv2.cvtColor(
+            image,
+            cv2.COLOR_BGR2GRAY
+        )
+
+        blur = cv2.GaussianBlur(
+            gray,
+            (5, 5),
+            1
+        )
+
+        edges = cv2.Canny(
+            blur,
+            70,
+            150
+        )
+
+        contours, _ = cv2.findContours(
+            edges,
+            cv2.RETR_EXTERNAL,
+            cv2.CHAIN_APPROX_SIMPLE
+        )
+
+        objects = []
+
+        for cnt in contours:
+
+            area = cv2.contourArea(cnt)
+
+            if area > 2000:
+
+                rect = cv2.minAreaRect(cnt)
+
+                box = cv2.boxPoints(rect)
+
+                box = box.astype(int)
+
+                objects.append(box)
+
+        return objects
+
+
+
+class Measurement:
+
+    def __init__(self, pixel_per_cm):
+        self.pixel_per_cm = pixel_per_cm
+
+    def measure(self, image, box):
+
+        cv2.drawContours(
+            image,
+            [box],
+            -1,
+            (0, 255, 0),
+            2
+        )
+
+        tl, tr, br, bl = box
+
+        tltr = midpoint(tl, tr)
+        blbr = midpoint(bl, br)
+
+        tlbl = midpoint(tl, bl)
+        trbr = midpoint(tr, br)
+
+        width = distance(
+            tltr,
+            blbr
+        ) / self.pixel_per_cm
+
+        height = distance(
+            tlbl,
+            trbr
+        ) / self.pixel_per_cm
+
+        cv2.putText(
+            image,
+            f"{width:.2f} cm",
+            (
+                int(tltr[0]),
+                int(tltr[1] - 10)
+            ),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            (255, 0, 0),
+            2
+        )
+
+        cv2.putText(
+            image,
+            f"{height:.2f} cm",
+            (
+                int(trbr[0] + 10),
+                int(trbr[1])
+            ),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            (255, 0, 0),
+            2
+        )
+
+        return width, height
